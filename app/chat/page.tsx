@@ -1,63 +1,111 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 type Message = {
-  role: 'user' | 'assistant';
+  role: 'user' | 'bot';
   content: string;
 };
 
 export default function ChatPage() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const sendMessage = async () => {
     if (!input.trim()) return;
 
-    const newMessages = [...messages, { role: 'user', content: input }];
-    setMessages(newMessages);
-    setInput('');
+    // Add user message to chat
+    setMessages(msgs => [...msgs, { role: 'user', content: input }]);
+    setLoading(true);
 
-    const res = await fetch('/api/groq', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ messages: newMessages }),
-    });
+    try {
+      const response = await fetch('/api/groq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input }),
+      });
 
-    const data = await res.json();
+      const data = await response.json();
 
-    if (data?.content) {
-      setMessages([...newMessages, { role: 'assistant', content: data.content }]);
-    } else {
-      setMessages([...newMessages, { role: 'assistant', content: '⚠️ Error: No response received.' }]);
+      let botReply = '';
+      if (data.error) {
+        botReply = `Error: ${data.error}`;
+      } else if (data.content) {
+        botReply = data.content;
+      } else {
+        botReply = 'No response from server.';
+      }
+
+      setMessages(msgs => [...msgs, { role: 'bot', content: botReply }]);
+    } catch (err: any) {
+      setMessages(msgs => [
+        ...msgs,
+        { role: 'bot', content: `Error: ${err.message || 'Unknown error'}` },
+      ]);
+    } finally {
+      setInput('');
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !loading) {
+      sendMessage();
     }
   };
 
   return (
-    <div style={{ padding: '2rem' }}>
-      <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>💬 Chat with Nest-Ed</h1>
-
-      <div style={{ marginTop: '1rem' }}>
+    <main style={{ maxWidth: 600, margin: '0 auto', padding: 24 }}>
+      <h1>
+        <span role="img" aria-label="chat">
+          💬
+        </span>{' '}
+        Chat with Nest-Ed
+      </h1>
+      <div style={{ marginBottom: 24 }}>
         {messages.map((msg, idx) => (
-          <div key={idx} style={{ marginBottom: '0.5rem' }}>
-            <strong>{msg.role === 'user' ? '🧑‍🏫' : '🤖'}:</strong> {msg.content}
+          <div key={idx} style={{ margin: '8px 0' }}>
+            <span>
+              {msg.role === 'user' ? '🧑‍💻' : '🤖'} : {msg.content}
+            </span>
           </div>
         ))}
       </div>
-
-      <form onSubmit={handleSend} style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', gap: 8 }}>
         <input
           type="text"
-          placeholder="Ask a question..."
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          style={{ flex: 1, padding: '0.5rem' }}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask a question..."
+          style={{
+            flex: 1,
+            padding: '8px 12px',
+            fontSize: 16,
+            borderRadius: 4,
+            border: '1px solid #ccc',
+          }}
+          disabled={loading}
         />
-        <button type="submit" style={{ padding: '0.5rem 1rem' }}>Send</button>
-      </form>
-    </div>
+        <button
+          onClick={sendMessage}
+          disabled={loading}
+          style={{
+            padding: '8px 18px',
+            fontSize: 16,
+            borderRadius: 4,
+            background: '#6246ea',
+            color: '#fff',
+            border: 'none',
+            cursor: loading ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {loading ? 'Sending...' : 'Send'}
+        </button>
+      </div>
+    </main>
   );
 }
+    
+  
