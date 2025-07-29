@@ -1,27 +1,31 @@
-export const runtime = 'edge';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const { messages } = await req.json();
 
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const GROQ_API_KEY = process.env.GROQ_API_KEY;
+  if (!GROQ_API_KEY) {
+    return NextResponse.json({ error: 'Missing GROQ API key' }, { status: 500 });
+  }
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
+      'Authorization': `Bearer ${GROQ_API_KEY}`,
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'llama3-70b-8192', // ✅ correct Groq model
-      messages,
-      temperature: 0.7,
+      model: 'mixtral-8x7b-32768',
+      messages: messages,
     }),
   });
 
-  const data = await res.json();
+  const data = await response.json();
 
-  // ✅ this safely extracts the actual reply
-  const reply = data?.choices?.[0]?.message?.content || '⚠️ No response from model.';
+  const content = data?.choices?.[0]?.message?.content;
 
-  return new Response(JSON.stringify({ content: reply }));
+  return NextResponse.json({ content });
 }
+
 
   
