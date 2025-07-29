@@ -2,7 +2,7 @@ export default function LoginPage() {
   return (
     <div>
       <h1>Login Page</h1>
-      <p>This is where users will log in.</p>
+      <p>Welcome! Please log in below.</p>
     </div>
   );
 }
