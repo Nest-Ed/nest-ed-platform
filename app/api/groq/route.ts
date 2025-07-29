@@ -1,12 +1,22 @@
+export const runtime = 'edge';
+
 export async function POST(req: Request) {
-  const data = await req.json();
-  return new Response(
-    JSON.stringify({
-      message: "Hello from GROQ endpoint",
-      received: data,
+  const { messages } = await req.json();
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'mixtral-8x7b-32768',
+      messages: messages,
+      temperature: 0.7,
     }),
-    {
-      headers: { "Content-Type": "application/json" },
-    }
-  );
+  });
+
+  const data = await response.json();
+
+  return new Response(JSON.stringify(data.choices[0].message));
 }
