@@ -10,7 +10,7 @@ export async function POST(req: Request) {
       'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'mixtral-8x7b-32768',
+      model: 'llama3-70b-8192', // ✅ known working Groq model
       messages: messages,
       temperature: 0.7,
     }),
@@ -18,5 +18,8 @@ export async function POST(req: Request) {
 
   const data = await response.json();
 
-  return new Response(JSON.stringify(data.choices[0].message));
+  // ✅ Log response for debugging
+  console.log('Groq API Response:', data);
+
+  return new Response(JSON.stringify(data.choices?.[0]?.message || { error: 'No message returned' }));
 }
