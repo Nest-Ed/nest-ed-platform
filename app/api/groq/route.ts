@@ -2,63 +2,46 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    // Validate and parse JSON body
     const body = await req.json();
-    if (!body?.message || typeof body.message !== 'string') {
-      return NextResponse.json({ error: 'Missing or invalid "message" in request body.' }, { status: 400 });
+    const message = body?.message;
+    const model = body?.model || 'gpt-3.5-turbo'; // default to 3.5
+
+    if (!message || typeof message !== 'string') {
+      return NextResponse.json({ error: 'Missing or invalid "message"' }, { status: 400 });
     }
 
-    const GROQ_API_KEY = process.env.GROQ_API_KEY;
-    if (!GROQ_API_KEY) {
-      return NextResponse.json({ error: 'Missing GROQ API key' }, { status: 500 });
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'Missing OpenAI API key' }, { status: 500 });
     }
 
-    // Prepare request to Groq API
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'mixtral-8x7b-32768',
-        messages: [
-          {
-            role: 'user',
-            content: body.message,
-          },
-        ],
+        model: model, // either gpt-3.5-turbo or gpt-4-turbo
+        messages: [{ role: 'user', content: message }],
       }),
     });
 
-    // Check if Groq API responded OK
-    if (!groqRes.ok) {
-      let errorData;
-      try {
-        errorData = await groqRes.json();
-      } catch {
-        errorData = await groqRes.text();
-      }
-      return NextResponse.json(
-        { error: 'Groq API Error', details: errorData },
-        { status: groqRes.status }
-      );
+    const data = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json({ error: 'OpenAI API error', details: data }, { status: response.status });
     }
 
-    // Parse response from Groq API
-    const groqData = await groqRes.json();
-    const reply = groqData?.choices?.[0]?.message?.content;
-
+    const reply = data?.choices?.[0]?.message?.content;
     if (!reply) {
-      return NextResponse.json({ error: 'No response from Groq API.', raw: groqData }, { status: 502 });
+      return NextResponse.json({ error: 'No response content' }, { status: 502 });
     }
 
-    // Success
     return NextResponse.json({ content: reply });
-  } catch (error) {
-    // Log error for debugging
-    console.error('API Route Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error', details: error instanceof Error ? error.message : error }, { status: 500 });
+
+  } catch (err) {
+    console.error('Error:', err);
+    return NextResponse.json({ error: 'Server error', details: err instanceof Error ? err.message : err }, { status: 500 });
   }
 }
-  
